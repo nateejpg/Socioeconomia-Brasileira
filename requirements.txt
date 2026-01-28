@@ -1,0 +1,8 @@
+pandas
+requests
+psycopg2-binary
+sqlalchemy
+pandas_datareader
+sidrapy
+ipeadatapy
+python-dotenv

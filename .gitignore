@@ -1,0 +1,4 @@
+./venv
+pg.py
+.env
+data/

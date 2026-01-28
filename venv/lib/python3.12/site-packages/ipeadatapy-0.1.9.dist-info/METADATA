@@ -1,0 +1,12 @@
+Metadata-Version: 2.1
+Name: ipeadatapy
+Version: 0.1.9
+Summary: An API wrapper for Ipeadata
+Home-page: https://github.com/luanborelli/ipeadatapy
+Author: Luan Borelli
+Author-email: contato@luanborelli.net
+License: MIT
+License-File: LICENSE
+Requires-Dist: pandas
+Requires-Dist: requests
+

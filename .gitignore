@@ -2,3 +2,5 @@
 pg.py
 .env
 data/
+logs/
+venv/

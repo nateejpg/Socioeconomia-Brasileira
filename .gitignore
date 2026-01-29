@@ -1,6 +1,9 @@
-./venv
-pg.py
+__pycache__/
+*.pyc
 .env
+.DS_Store
+venv/
 data/
 logs/
-venv/
+plugins/
+pg.py

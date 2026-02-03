@@ -6,3 +6,4 @@ pandas_datareader
 sidrapy
 ipeadatapy
 python-dotenv
+pyspark

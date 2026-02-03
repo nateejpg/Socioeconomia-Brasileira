@@ -1,69 +1,42 @@
-import pandas as pd
-import requests
 import os
-import urllib3
+import zipfile
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+def extrair_dados(zip_path):
+    if not os.path.exists(zip_path):
+        print(f"Arquivo nao encontrado: {zip_path}")
+        return None
 
-# --- Configuração ---
-EXTRACTED_DIR = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__),
-        "../../data/extracted/bolsa_familia"
+    extracted_folder = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "../../data/extracted/bolsa_familia"
+        )
     )
-)
+    
+    os.makedirs(extracted_folder, exist_ok=True)
 
-def extract_bolsa_familia():
-    print("--- 1. Extraction: Bolsa Familia Data (IPEA) ---")
-    
-    # URL da série VAL_PBF12
-    url = "http://www.ipeadata.gov.br/api/odata4/Metadados('VAL_PBF12')/Valores"
-    
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'application/json'
-    }
-    
+    print(f"Extraindo: {os.path.basename(zip_path)}")
+
     try:
-        print(f"Acessando: {url}")
-        
-        response = requests.get(url, headers=headers, verify=False, timeout=60)
-        response.raise_for_status()
-        
-        data = response.json()
-        
-        if 'value' not in data or len(data['value']) == 0:
-            print("Erro: Lista vazia.")
-            return
+        csv_path = None
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
 
-        df = pd.DataFrame(data['value'])
-        
-        # MUDANÇA: Vamos renomear e manter as colunas de Território
-        # TERCODIGO = 1 (Geralmente é Brasil)
-        # TERNOME = Nome do lugar (Brasil, Acre, etc)
-        rename_map = {
-            'VALDATA': 'data', 
-            'VALVALOR': 'valor',
-            'TERCODIGO': 'ter_cod',
-            'TERNOME': 'ter_nome',
-            'NIVNOME': 'nivel' # País, Estado, Município
-        }
-        
-        # Renomeia apenas o que encontrar
-        df.rename(columns=rename_map, inplace=True)
-        
-        # Salva
-        os.makedirs(EXTRACTED_DIR, exist_ok=True)
-        output_path = os.path.join(EXTRACTED_DIR, 'bolsa_familia_ipea_raw.csv')
-        
-        df.to_csv(output_path, index=False)
-        
-        print(f"Sucesso: {len(df)} registros baixados.")
-        print("Amostra (verifique a coluna 'ter_nome' ou 'nivel'):")
-        print(df.head())
-        
+            file_names = zip_ref.namelist()
+            csv_files = [f for f in file_names if f.lower().endswith(".csv")]
+            
+            if not csv_files:
+                return None
+            
+            target_file = csv_files[0]
+            zip_ref.extract(target_file, extracted_folder)
+            
+            csv_path = os.path.join(extracted_folder, target_file)
+            
+        return csv_path
+
+    except zipfile.BadZipFile:
+        print(f"ZIP invalido: {zip_path}")
+        return None
     except Exception as e:
-        print(f"Erro fatal na extração: {e}")
-
-if __name__ == "__main__":
-    extract_bolsa_familia()
+        print(f"Erro na extracao: {e}")
+        return None

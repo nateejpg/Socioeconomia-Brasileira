@@ -3,7 +3,7 @@ import unicodedata
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, sum, count, to_date, concat, lit, substring, regexp_replace
 
-PROGRAMA = "auxilio_brasil"
+PROGRAMA = "novo_bolsa_familia"
 
 BRONZE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../data/bronze/{PROGRAMA}"))
 SILVER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../data/silver/{PROGRAMA}"))
@@ -14,7 +14,7 @@ def normalize_str(text):
     return "".join(c for c in unicodedata.normalize('NFD', text) 
                    if unicodedata.category(c) != 'Mn').upper().strip()
 
-def processar_auxilio_com_spark(caminho_csv):
+def processar_novo_bolsa_com_spark(caminho_csv):
     spark = SparkSession.builder \
         .appName(f"{PROGRAMA}_Medallion") \
         .config("spark.driver.memory", "4g") \

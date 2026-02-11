@@ -1,8 +1,7 @@
 import requests
-import time
 import os
+import time
 
-# Pasta onde os CSVs serão salvos
 RAW_FOLDER = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__),
@@ -12,40 +11,36 @@ RAW_FOLDER = os.path.abspath(
 
 os.makedirs(RAW_FOLDER, exist_ok=True)
 
-# Headers para evitar bloqueio básico do portal
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                  "AppleWebKit/537.36 (KHTML, like Gecko) "
-                  "Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/csv,application/octet-stream",
-    "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/csv,application/octet-stream"
 }
 
-# Ano inicial e final
-start_year = 2013
-end_year = 2026
+def download_receita(ano):
+    file_name = f"receita_{ano}.zip"
+    file_path = os.path.join(RAW_FOLDER, file_name)
+    
+    # URL oficial (Verifique se o padrao do ano se mantem)
+    url = f"https://portaldatransparencia.gov.br/download-de-dados/receitas/{ano}"
+    
+    if os.path.exists(file_path):
+        return file_path
 
-for year in range(start_year, end_year + 1):
-
-    file_path = os.path.join(RAW_FOLDER, f"receita_{year}.zip")
-
-    url = f"https://portaldatransparencia.gov.br/download-de-dados/receitas/{year}"
-    print(f"Baixando dados para {year} …")
-
+    print(f"Baixando Receita {ano}...")
+    
     try:
-        response = requests.get(url, headers=HEADERS, timeout=180)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        print(f"Erro ao baixar {year}: {e}")
-        continue
+        response = requests.get(url, headers=HEADERS, stream=True, timeout=300)
+        
+        if response.status_code == 200:
+            with open(file_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=1024*1024):
+                    f.write(chunk)
+            return file_path
+        else:
+            print(f"Erro download {ano}: Status {response.status_code}")
+            return None
 
-    # Criar arquivo local
-    with open(file_path, "wb") as f:
-        f.write(response.content)
-
-    print(f"Baixado e salvo: {file_path}")
-
-    # Pausa entre requisições (evita bloqueio)
-    time.sleep(2)
-
-print("Download concluído!")
+    except Exception as e:
+        print(f"Erro conexao {ano}: {e}")
+        if os.path.exists(file_path): os.remove(file_path)
+        return None

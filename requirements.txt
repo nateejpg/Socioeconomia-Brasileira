@@ -7,3 +7,4 @@ sidrapy
 ipeadatapy
 python-dotenv
 pyspark
+boto3

@@ -5,7 +5,7 @@ import os
 RAW_FOLDER = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__),
-        "../../data/raw/auxilio_brasil"
+        "../../data/raw/novo_bolsa_familia"
     )
 )
 
@@ -17,21 +17,17 @@ HEADERS = {
 }
 
 def download_data(ano, mes):
-    """
-    Baixa o arquivo do Auxílio Brasil para o mês/ano especificado.
-    Retorna o caminho do arquivo se sucesso, ou None se falha.
-    """
     mes_str = f"{mes:02d}"
-    file_name = f"auxilio_brasil_{ano}{mes_str}.zip"
+    file_name = f"novo_bolsa_familia_{ano}{mes_str}.zip"
     file_path = os.path.join(RAW_FOLDER, file_name)
     
-    url = f"https://portaldatransparencia.gov.br/download-de-dados/auxilio-brasil/{ano}{mes_str}"
+    url = f"https://portaldatransparencia.gov.br/download-de-dados/novo-bolsa-familia/{ano}{mes_str}"
     
     if os.path.exists(file_path):
         return file_path
 
     try:
-        print(f"[Auxilio] Baixando {ano}/{mes_str}...")
+        print(f"⬇ [Novo Bolsa] Baixando {ano}/{mes_str}...")
         response = requests.get(url, headers=HEADERS, stream=True, timeout=180)
         
         if response.status_code == 200 and 'text/html' not in response.headers.get('Content-Type', ''):
@@ -41,13 +37,10 @@ def download_data(ano, mes):
                         f.write(chunk)
             return file_path
         else:
-            print(f"Arquivo indisponível: {ano}/{mes_str}")
+            print(f" Arquivo indisponível: {ano}/{mes_str}")
             return None
 
     except requests.exceptions.RequestException as e:
-        print(f"Erro de conexão: {e}")
+        print(f" Erro de conexão: {e}")
         if os.path.exists(file_path): os.remove(file_path)
         return None
-
-if __name__ == "__main__":
-    download_data(2022, 1)

@@ -1,61 +1,52 @@
-import pandas as pd
 import os
-from sqlalchemy import create_engine
+import boto3
+from botocore.exceptions import NoCredentialsError
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, "../../"))
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
-# --- Configuration ---
-DB_USER = os.getenv('DB_USER')
-DB_PASS = os.getenv('DB_PASS')
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT')
-DB_NAME = os.getenv('DB_NAME')
+AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+BUCKET_NAME = os.getenv("AWS_S3_BUCKET")
 
-# Connection String
-CONN_STRING = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATA_DIR = os.path.join(ROOT_DIR, "data")
 
-AGGREGATED_DIR = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__),
-        "../../data/aggregated/receita"
-    )
-)
+def upload_folder_to_s3(local_folder, s3_folder):
+    s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY,
+                      aws_secret_access_key=AWS_SECRET_KEY,
+                      region_name=AWS_REGION)
 
-def get_engine():
-    return create_engine(CONN_STRING)
+    if not os.path.exists(local_folder):
+        print(f"Pasta nao encontrada: {local_folder}")
+        return
 
-def load_to_postgres():
-    engine = get_engine()
-    
-    print(f"Loading data from: {AGGREGATED_DIR}")
+    print(f"Iniciando upload de: {local_folder} -> s3://{BUCKET_NAME}/{s3_folder}")
 
-    # Map filename -> Target Table Name
-    files_to_load = {
-        'receita_anual.csv': 'tb_receita_anual',
-        'receita_mensal.csv': 'tb_receita_mensal'
-    }
+    for root, dirs, files in os.walk(local_folder):
+        for file in files:
+            local_path = os.path.join(root, file)
+            
+            relative_path = os.path.relpath(local_path, local_folder)
+            s3_path = os.path.join(s3_folder, relative_path).replace("\\", "/")
 
-    print("--- Starting Database Load ---")
-
-    for filename, table_name in files_to_load.items():
-        file_path = os.path.join(AGGREGATED_DIR, filename)
-        
-        if os.path.exists(file_path):
             try:
-                print(f"Reading {filename}...")
-                df = pd.read_csv(file_path)
-                
-                print(f"Loading {len(df)} rows into '{table_name}'...")
-                df.to_sql(table_name, engine, if_exists='replace', index=False)
-                
-                print(f"Success: {table_name} loaded.")
-            except Exception as e:
-                print(f"Error loading {table_name}: {e}")
-        else:
-            print(f"Warning: File not found at {file_path}")
+                s3.upload_file(local_path, BUCKET_NAME, s3_path)
+            except FileNotFoundError:
+                print(f"Arquivo nao encontrado: {local_path}")
+            except NoCredentialsError:
+                print("Credenciais AWS nao encontradas")
+                return
 
-    print("--- Load Process Completed ---")
+def run_upload():
+
+    upload_folder_to_s3(os.path.join(DATA_DIR, "bronze/receita"), "bronze/receita")
+    upload_folder_to_s3(os.path.join(DATA_DIR, "silver/receita"), "silver/receita")
+    upload_folder_to_s3(os.path.join(DATA_DIR, "gold/receita"), "gold/receita")
+    
+    print("Upload Receita Concluido!")
 
 if __name__ == "__main__":
-    load_to_postgres()
+    run_upload()

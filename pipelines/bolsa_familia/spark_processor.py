@@ -1,88 +1,87 @@
 import os
+import unicodedata
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, sum, count, to_date, concat, lit, substring, regexp_replace
-from dotenv import load_dotenv
 
-load_dotenv(override=True)
+PROGRAMA = "bolsa_familia"
 
-DB_USER = os.getenv('DB_USER')
-DB_PASS = os.getenv('DB_PASS')
-DB_HOST = os.getenv('DB_HOST', 'localhost')
-DB_PORT = os.getenv('DB_PORT', '5432')
-DB_NAME = os.getenv('DB_NAME')
+BRONZE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../data/bronze/{PROGRAMA}"))
+SILVER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../data/silver/{PROGRAMA}"))
+GOLD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/gold/fato_bolsa_familia"))
+
+def normalize_str(text):
+    if not text: return ""
+    return "".join(c for c in unicodedata.normalize('NFD', text) 
+                   if unicodedata.category(c) != 'Mn').upper().strip()
 
 def processar_com_spark(caminho_csv):
     spark = SparkSession.builder \
-        .appName("BolsaFamiliaETL") \
-        .config("spark.jars.packages", "org.postgresql:postgresql:42.2.18") \
+        .appName(f"{PROGRAMA}_Medallion") \
         .config("spark.driver.memory", "4g") \
         .getOrCreate()
 
     spark.sparkContext.setLogLevel("ERROR")
 
     try:
-        df = spark.read.option("header", "true") \
+        df_raw = spark.read.option("header", "true") \
             .option("delimiter", ";") \
             .option("encoding", "ISO-8859-1") \
             .csv(caminho_csv)
+        
+        # COMENTADO PARA ECONOMIZAR DISCO
+        # df_raw.write.mode("append").parquet(BRONZE_DIR)
 
-        colunas_normalizadas = [c.strip().upper() for c in df.columns]
-        df = df.toDF(*colunas_normalizadas)
+        cols_originais = df_raw.columns
+        cols_normalizadas = [normalize_str(c) for c in cols_originais]
+        df_silver = df_raw.toDF(*cols_normalizadas)
 
         mapa = {}
-        for c in df.columns:
-            if "UF" in c and "NOME" not in c: mapa[c] = "uf"
-            elif "VALOR PARCELA" in c: mapa[c] = "valor"
-            elif "NIS" in c: mapa[c] = "nis"
-            elif "REFER" in c: mapa[c] = "mes_ref"
-            elif "MUNIC" in c and "COD" in c: mapa[c] = "cod_municipio_siafi"
-            elif "MUNIC" in c and "NOME" in c: mapa[c] = "nome_municipio"
+        found_targets = set()
         
-        cols_existentes = [col(k).alias(v) for k, v in mapa.items()]
-        df = df.select(cols_existentes)
+        for c in df_silver.columns:
+            target = None
+            if "SIAFI" in c: target = "cod_municipio_siafi"
+            elif "UF" in c and "NOME" not in c: target = "uf"
+            elif "VALOR" in c and ("PARCELA" in c or "BENEFICIO" in c or "PAGO" in c): target = "valor"
+            elif "NIS" in c: target = "nis"
+            elif "REFER" in c or "COMPET" in c: target = "mes_ref"
+            elif "MUNIC" in c and "NOME" in c: target = "nome_municipio"
+            
+            if not target and "COD" in c and "MUNIC" in c and "NOME" not in c:
+                target = "cod_municipio_siafi"
 
-        df = df.withColumn("valor", regexp_replace("valor", ",", ".").cast("float"))
+            if target and target not in found_targets:
+                mapa[c] = target
+                found_targets.add(target)
+
+        cols_existentes = [col(k).alias(v) for k, v in mapa.items()]
+        df_silver = df_silver.select(cols_existentes)
+        
+        if "valor" in found_targets:
+            df_silver = df_silver.withColumn("valor", regexp_replace("valor", ",", ".").cast("double"))
+
+        # COMENTADO PARA ECONOMIZAR DISCO
+        # df_silver.write.mode("append").parquet(SILVER_DIR)
 
         colunas_agrupamento = ["uf", "mes_ref"]
-        if "cod_municipio_siafi" in mapa.values():
-            colunas_agrupamento.append("cod_municipio_siafi")
-        if "nome_municipio" in mapa.values():
-            colunas_agrupamento.append("nome_municipio")
+        if "cod_municipio_siafi" in found_targets: colunas_agrupamento.append("cod_municipio_siafi")
+        if "nome_municipio" in found_targets: colunas_agrupamento.append("nome_municipio")
 
-        df_agregado = df.groupBy(*colunas_agrupamento) \
+        df_gold = df_silver.groupBy(*colunas_agrupamento) \
             .agg(
                 sum("valor").alias("valor_pago"),
                 count("nis").alias("quantidade_beneficiarios")
             )
 
-        df_final = df_agregado.withColumn(
+        df_gold = df_gold.withColumn(
             "referencia_data",
-            to_date(
-                concat(
-                    substring(col("mes_ref"), 1, 4),
-                    lit("-"),
-                    substring(col("mes_ref"), 5, 2),
-                    lit("-01")
-                )
-            )
+            to_date(concat(substring(col("mes_ref"), 1, 4), lit("-"), 
+                           substring(col("mes_ref"), 5, 2), lit("-01")))
         ).drop("mes_ref")
 
-        jdbc_url = f"jdbc:postgresql://{DB_HOST}:{DB_PORT}/{DB_NAME}"
-        properties = {
-            "user": DB_USER,
-            "password": DB_PASS,
-            "driver": "org.postgresql.Driver"
-        }
-
-        df_final.write.jdbc(
-            url=jdbc_url,
-            table="fato_bolsa_familia",
-            mode="append",
-            properties=properties
-        )
+        df_gold.write.mode("append").parquet(GOLD_DIR)
 
     except Exception as e:
-        print(f"Erro no Spark: {e}")
-        raise e
+        print(f"Erro Spark: {e}")
     finally:
         spark.stop()

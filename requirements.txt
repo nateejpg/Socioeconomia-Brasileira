@@ -8,3 +8,6 @@ ipeadatapy
 python-dotenv
 pyspark
 boto3
+bs4
+odfpy
+openpyxl

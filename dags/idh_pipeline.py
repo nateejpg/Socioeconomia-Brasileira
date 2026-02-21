@@ -65,18 +65,12 @@ def run_pipeline():
     
     if raw_csv_path:
         print("\n[STEP 2] Extração e Conversão")
-        extracted_csv_path = extrair_idh(raw_csv_path)
+        parquet_path = extrair_idh(raw_csv_path)
         
-        if extracted_csv_path:
+        if parquet_path:
             print(f"\n[STEP 3] Processamento Spark")
-            processar_idh_spark(extracted_csv_path)
+            processar_idh_spark(parquet_path)
             
-            try: 
-                os.remove(extracted_csv_path)
-                print("CSV intermediário removido.")
-            except: 
-                pass
-
             print("\n[STEP 4] Upload das camadas Bronze, Silver e Gold para S3")
             upload_s3_module()
             

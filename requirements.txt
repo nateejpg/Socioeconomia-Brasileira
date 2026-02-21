@@ -11,3 +11,4 @@ boto3
 bs4
 odfpy
 openpyxl
+basedosdados

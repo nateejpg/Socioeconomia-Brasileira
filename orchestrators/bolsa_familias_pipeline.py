@@ -2,6 +2,7 @@ import os
 import shutil
 import time
 import sys
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -101,7 +102,9 @@ def run_pipeline():
     print("\n--- Checkpoint: Upload Auxílio Brasil ---")
     load_ab.run()
 
-    for ano in range(2023, 2027): 
+    ano_atual = datetime.now().year
+
+    for ano in range(2023, ano_atual + 1): 
         for mes in range(1, 13):
             processar_ciclo_mensal(ano, mes, 'novo_bolsa')
             

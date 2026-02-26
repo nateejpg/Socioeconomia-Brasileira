@@ -2,6 +2,7 @@ import os
 import shutil
 import time
 import sys
+import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -58,7 +59,9 @@ def run_pipeline():
     
     reset_receita_folders()
 
-    anos = range(2013, 2026) 
+    ano_atual = datetime.datetime.now().year
+
+    anos = range(2013, datetime.datetime.now().year) 
 
     for ano in anos:
         zip_path = download_receita(ano)

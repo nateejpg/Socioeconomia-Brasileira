@@ -25,11 +25,11 @@ def run():
         shutil.rmtree(EXTRACTED_FOLDER)
     os.makedirs(EXTRACTED_FOLDER)
 
-    # 2. Busca o ZIP correto
-    zip_files = [f for f in glob.glob(os.path.join(RAW_FOLDER, "*2010_2023*.zip")) if "xlsx" in f]
+# 2. Busca o ZIP correto de forma dinâmica (qualquer ano final)
+    zip_files = [f for f in glob.glob(os.path.join(RAW_FOLDER, "*2010_*.zip")) if "xlsx" in f]
     
     if not zip_files:
-        zip_files = glob.glob(os.path.join(RAW_FOLDER, "*2010_2023*.zip"))
+        zip_files = glob.glob(os.path.join(RAW_FOLDER, "*2010_*.zip"))
 
     if not zip_files:
         print(f"Nenhum arquivo ZIP compatível encontrado em: {RAW_FOLDER}")

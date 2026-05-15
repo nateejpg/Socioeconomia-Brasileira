@@ -1,0 +1,78 @@
+name: Orquestrador de Dados (Socioeconomia Brasileira)
+
+on:
+  # Agendamento via Cron (Exemplo: IPCA todo dia 1 às 08:00)
+  schedule:
+    - cron: '0 8 1 * *'
+  
+  # Esse gatilho permite que você rode o pipeline manualmente clicando num botão no GitHub
+  workflow_dispatch:
+    inputs:
+      pipeline_name:
+        description: 'Qual pipeline rodar?'
+        required: true
+        default: 'ipca'
+        type: choice
+        options:
+          - ipca
+          - selic
+          - pib
+          - bolsa_familia
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Clonar o Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12' 
+          cache: 'pip' 
+
+      - name: Instalar Dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Configurar Credenciais da AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # ---------------------------------------------------------
+      # Execução por Agendamento (CRON)
+      # ---------------------------------------------------------
+      - name: Executar Pipeline do IPCA (Cron)
+        if: github.event.schedule == '0 8 1 * *'
+        env:
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: python -c "from orchestrators.ipca_pipeline import run_pipeline; run_pipeline()"
+
+      # ---------------------------------------------------------
+      # Execução Manual (Workflow Dispatch)
+      # ---------------------------------------------------------
+      - name: Executar Pipeline Selecionado (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          echo "Iniciando pipeline: ${{ inputs.pipeline_name }}"
+          python -c "from orchestrators.${{ inputs.pipeline_name }}_pipeline import run_pipeline; run_pipeline()"

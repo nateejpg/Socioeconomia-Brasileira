@@ -14,7 +14,7 @@ default_args = {
     'owner': 'socioeconomia-brasileira',
     'retries': 2,
     'retry_delay': timedelta(minutes=10),
-    'start_date': days_ago(1),
+    'start_date': datetime(2024, 1, 1),
 }
 
 dag = DAG(

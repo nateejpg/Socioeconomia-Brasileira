@@ -6,23 +6,49 @@ on:
       pipeline_name:
         description: 'Qual pipeline rodar?'
         required: true
-        default: 'ipca'
+        default: 'todas'
         type: choice
         options:
+          - todas
+          - bolsa_familias
+          - desemprego
+          - divida
+          - forca_trabalho
+          - idh
+          - inss
           - ipca
-          - selic
+          - orcamento
           - pib
-          - bolsa_familia
+          - populacional
+          - receita
+          - selic
 
   schedule:
-    - cron: '0 13 12 * *'        # IPCA: Todo dia 12 de cada mês
-    - cron: '0 13 * * 4'         # Selic: Toda Quinta-feira 
-    - cron: '0 13 10 3,6,9,12 *' # PIB: Dia 10 de Mar, Jun, Set e Dez
-    - cron: '0 13 20 * *'        # Bolsa Família: Todo dia 20 de cada mês 
+    - cron: '0 13 12 * *'        # IPCA (Mensal - Dia 12)
+    - cron: '0 13 * * 4'         # Selic (Semanal - Quinta)
+    - cron: '0 13 10 3,6,9,12 *' # PIB (Trimestral - Dia 10)
+    - cron: '0 13 20 * *'        # Bolsa Família (Mensal - Dia 20)
+    - cron: '0 13 15 * *'        # Desemprego (Mensal - Dia 15)
+    - cron: '0 14 15 * *'        # Força de Trabalho (Mensal - Dia 15, 1h depois)
+    - cron: '0 13 25 * *'        # Dívida (Mensal - Dia 25)
+    - cron: '0 13 5 * *'         # INSS (Mensal - Dia 5)
+    - cron: '0 13 1 * *'         # Orçamento (Mensal - Dia 1)
+    - cron: '0 14 10 * *'        # Receita (Mensal - Dia 10)
+    - cron: '0 13 2 1 *'         # IDH (Anual - 2 de Jan)
+    - cron: '0 14 2 1 *'         # Populacional (Anual - 2 de Jan, 1h depois)
 
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+    # As variáveis de ambiente agora ficam aqui em cima e servem para todos os passos!
+    env:
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASS: ${{ secrets.DB_PASS }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
     
     steps:
       # --- PREPARAÇÃO DO AMBIENTE ---
@@ -47,69 +73,73 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # --- 1. IPCA (Mensal) ---
-      - name: Executar Pipeline do IPCA
+      # --- EXECUÇÕES AGENDADAS (CRON) ---
+      
+      - name: Cron - IPCA
         if: github.event.schedule == '0 13 12 * *'
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: python -c "from orchestrators.ipca_pipeline import run_pipeline; run_pipeline()"
 
-      # --- 2. SELIC (Semanal) ---
-      - name: Executar Pipeline da Selic
+      - name: Cron - Selic
         if: github.event.schedule == '0 13 * * 4'
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: python -c "from orchestrators.selic_pipeline import run_pipeline; run_pipeline()"
 
-      # --- 3. PIB (Trimestral) ---
-      - name: Executar Pipeline do PIB
+      - name: Cron - PIB
         if: github.event.schedule == '0 13 10 3,6,9,12 *'
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: python -c "from orchestrators.pib_pipeline import run_pipeline; run_pipeline()"
 
-      # --- 4. BOLSA FAMÍLIA (Mensal) ---
-      - name: Executar Pipeline do Bolsa Família
+      - name: Cron - Bolsa Família
         if: github.event.schedule == '0 13 20 * *'
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: python -c "from orchestrators.bolsa_familia_pipeline import run_pipeline; run_pipeline()"
+        run: python -c "from orchestrators.bolsa_familias_pipeline import run_pipeline; run_pipeline()"
 
-      # --- 5. EXECUÇÃO MANUAL (O botão que você clicou) ---
-      - name: Executar Pipeline Selecionado (Manual)
+      - name: Cron - Desemprego
+        if: github.event.schedule == '0 13 15 * *'
+        run: python -c "from orchestrators.desemprego_pipeline import run_pipeline; run_pipeline()"
+
+      - name: Cron - Força de Trabalho
+        if: github.event.schedule == '0 14 15 * *'
+        run: python -c "from orchestrators.forca_trabalho_pipeline import run_pipeline; run_pipeline()"
+
+      - name: Cron - Dívida
+        if: github.event.schedule == '0 13 25 * *'
+        run: python -c "from orchestrators.divida_pipeline import run_pipeline; run_pipeline()"
+
+      - name: Cron - INSS
+        if: github.event.schedule == '0 13 5 * *'
+        run: python -c "from orchestrators.inss_pipeline import run_pipeline; run_pipeline()"
+
+      - name: Cron - Orçamento
+        if: github.event.schedule == '0 13 1 * *'
+        run: python -c "from orchestrators.orcamento_pipeline import run_pipeline; run_pipeline()"
+
+      - name: Cron - Receita
+        if: github.event.schedule == '0 14 10 * *'
+        run: python -c "from orchestrators.receita_pipeline import run_pipeline; run_pipeline()"
+
+      - name: Cron - IDH
+        if: github.event.schedule == '0 13 2 1 *'
+        run: python -c "from orchestrators.idh_pipeline import run_pipeline; run_pipeline()"
+
+      - name: Cron - Populacional
+        if: github.event.schedule == '0 14 2 1 *'
+        run: python -c "from orchestrators.populacional_pipeline import run_pipeline; run_pipeline()"
+
+      # --- EXECUÇÃO MANUAL (O botão para rodar TUDO ou isolado) ---
+      
+      - name: Executar Pipeline(s) Manualmente
         if: github.event_name == 'workflow_dispatch'
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          echo "Iniciando pipeline: ${{ inputs.pipeline_name }}"
-          python -c "from orchestrators.${{ inputs.pipeline_name }}_pipeline import run_pipeline; run_pipeline()"
+          if [ "${{ inputs.pipeline_name }}" == "todas" ]; then
+            echo "Iniciando TODAS as pipelines sequencialmente..."
+            PIPELINES=("bolsa_familias" "desemprego" "divida" "forca_trabalho" "idh" "inss" "ipca" "orcamento" "pib" "populacional" "receita" "selic")
+            
+            for p in "${PIPELINES[@]}"; do
+              echo "================================================"
+              echo "Executando: $p"
+              python -c "from orchestrators.${p}_pipeline import run_pipeline; run_pipeline()"
+            done
+            echo "================================================"
+            echo "Todas as cargas finalizadas com sucesso!"
+          else
+            echo "Iniciando pipeline isolada: ${{ inputs.pipeline_name }}"
+            python -c "from orchestrators.${{ inputs.pipeline_name }}_pipeline import run_pipeline; run_pipeline()"
+          fi

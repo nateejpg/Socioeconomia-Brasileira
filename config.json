@@ -1,0 +1,31 @@
+{
+  "project": "socioeconomia_brasil",
+  "data_root": "data",
+  "paths": {
+    "raw": "data/raw",
+    "extracted": "data/extracted",
+    "silver": "data/silver",
+    "gold": "data/gold",
+    "logs": "logs"
+  },
+  "database": {
+    "type": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "database": "socioeconomia",
+    "user": "your_user",
+    "password": "your_password"
+  },
+  "spark": {
+    "app_name": "socioeconomia_pipeline",
+    "master": "local[*]"
+  },
+  "download": {
+    "timeout_seconds": 60,
+    "retries": 3
+  },
+  "airflow": {
+    "dags_folder": "dags",
+    "executor": "LocalExecutor"
+  }
+}

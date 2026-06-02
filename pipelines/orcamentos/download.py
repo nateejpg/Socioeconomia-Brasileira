@@ -18,6 +18,7 @@ def run():
     for ano in anos:
         file_url = f"{url_base}/{ano}"
         file_path = os.path.join(RAW_DIR, f"orcamento_{ano}.zip")
+        print(f"Tentando baixar {ano}...")
         
         try:
             response = requests.get(file_url, headers=headers, timeout=180)
@@ -25,8 +26,11 @@ def run():
                 with open(file_path, "wb") as f:
                     f.write(response.content)
                 arquivos_baixados += 1
+                print(f"-> Sucesso: Orçamento {ano} baixado.")
+            else:
+                print(f"-> Bloqueio/Erro no {ano}: O servidor devolveu Status Code {response.status_code}")
         except Exception as e:
-            print(f"Falha no ano {ano}: {e}")
+            print(f"-> Falha de conexão no ano {ano}: {e}")
             
     if arquivos_baixados == 0:
         raise ValueError("Nenhum arquivo foi baixado.")

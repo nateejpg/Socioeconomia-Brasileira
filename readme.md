@@ -1,4 +1,4 @@
-# Socioeconomia Brasil - Data Pipelines
+# Socioeconomia Brasileira
 
 Este projeto consiste em um ecossistema de pipelines de dados automatizados para coleta, processamento e análise de indicadores socioeconômicos do Brasil. O objetivo é transformar dados brutos de fontes oficiais (como IBGE, IPEA e Banco Central) em informações estruturadas para análise.
 

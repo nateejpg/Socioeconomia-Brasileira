@@ -6,7 +6,6 @@ Este projeto consiste em um ecossistema de pipelines de dados automatizados para
 
 O projeto foi desenhado focando em automação *serverless* e alta disponibilidade. Abaixo está o diagrama detalhado da nossa arquitetura de ponta a ponta:
 
-![Diagrama da Arquitetura do Projeto](./images/socioecooo.png)
 ![Diagrama da Arquitetura do Projeto](./images/SOCIOECO.drawio.png)
 
 
